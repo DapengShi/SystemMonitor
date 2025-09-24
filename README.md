@@ -1,48 +1,62 @@
 # SystemMonitor
 
-一个简单的Mac菜单栏小工具，用于显示CPU、内存和网络使用情况，并高亮显示异常的进程。
+SystemMonitor is a lightweight macOS menu bar utility that surfaces real-time CPU, memory, and network activity. It highlights processes that cross configurable thresholds so you can spot slowdowns before they impact your workflow.
 
-## 功能
+## Features
 
-- 在菜单栏上实时显示CPU使用率
-- 在菜单栏上实时显示内存使用率
-- 在菜单栏上实时显示网络上传和下载速度
-- 点击菜单栏图标可查看更详细的信息
-- **高亮显示异常的CPU和内存使用率进程**
-- **当有异常进程时，菜单栏图标会变为红色警告**
-- **显示前10个进程的CPU和内存使用情况**
+- Live CPU, memory, and network usage directly in the menu bar
+- Detail window with charts for system utilization and sortable process table
+- Visual alerts and menu bar badge when a process crosses high-usage thresholds
+- Quick process management, including filter, search, and one-click termination
+- Packaged SwiftUI and AppKit implementation suitable for both Swift Package and Xcode workflows
 
-## 安装
+## Getting Started
 
-### 从源代码构建
+### Requirements
 
-1. 克隆此仓库
-2. 在终端中导航到项目目录
-3. 运行 `swift build -c release`
-4. 运行 `./.build/release/SystemMonitor`
+- macOS 12.0 or later
+- Xcode 14 or later with Swift 5.7+ toolchain
 
-### 使用打包好的应用
+### Build From Source
 
-1. 下载 `SystemMonitor.zip`
-2. 解压缩
-3. 将 `SystemMonitor.app` 拖到应用程序文件夹
-4. 启动应用
+```bash
+swift build
+```
 
-## 使用方法
+### Run the Menu Bar App
 
-启动应用程序后，它将在菜单栏上显示CPU使用率、内存使用率和网络速度。点击菜单栏图标可以查看更详细的信息，包括系统总体资源使用情况和前10个占用资源最多的进程。
+```bash
+swift run SystemMonitor
+```
 
-当有进程的CPU使用率超过80%或内存使用率超过10%时，这些进程会在菜单中以红色粗体高亮显示，同时菜单栏图标也会变为红色作为警告。
+### Create a Release Build & Bundle
 
-## 技术细节
+```bash
+swift build -c release
+sh package_app.sh
+```
 
-- 使用Swift编写
-- 使用AppKit框架创建菜单栏应用程序
-- 使用Darwin API获取系统信息
-- 使用ps命令获取进程信息
-- 使用定时器定期更新系统信息和进程信息
-- 使用NSAttributedString实现高亮显示
+The release build regenerates `SystemMonitor.app` and the distributable `SystemMonitor.zip` archive.
 
-## 许可证
+## Documentation
 
-MIT
+Extended guides are collected under the `docs/` directory:
+
+- `docs/README.md` – documentation index and navigation
+- `docs/user-guide.md` – everyday usage walkthrough
+- `docs/interface-guide.md` – UI layout reference
+- `docs/detail-page-guide.md` – tips for the detailed resource view
+
+## Development Notes
+
+- Core package sources live in `Sources/SystemMonitor/`
+- The legacy SwiftUI app target under `SystemMonitor/` mirrors packaged code for rapid UI experiments
+- Manual performance validation can be performed via `swift run SystemMonitor` alongside the provided `cpu_stress_test.py`
+
+## Contributing
+
+Contributions are welcome. Follow Conventional Commits when preparing patches, document manual validation steps, and include updated UI screenshots for visual changes.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
