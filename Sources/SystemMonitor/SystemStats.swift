@@ -5,6 +5,7 @@ import Darwin
 
 struct ProcessInfo: Identifiable {
     let pid: Int32
+    let parentPid: Int32
     let name: String
     let cpuUsage: Double
     let memoryUsage: Double
@@ -276,7 +277,7 @@ class SystemStats {
             
             let task = Process()
             task.launchPath = "/bin/ps"
-            task.arguments = ["-axro", "%cpu,%mem,pid,comm", "-c"]
+            task.arguments = ["-axro", "%cpu,%mem,pid,ppid,comm", "-c"]
             
             let pipe = Pipe()
             task.standardOutput = pipe
@@ -300,16 +301,18 @@ class SystemStats {
                         }
                         
                         let components = line.split(separator: " ").filter { !$0.isEmpty }
-                        if components.count >= 4,
+                        if components.count >= 5,
                            let cpuUsage = Double(components[0]),
                            let memUsage = Double(components[1]),
-                           let pid = Int32(components[2]) {
-                            let name = components[3...].joined(separator: " ")
+                           let pid = Int32(components[2]),
+                           let parentPid = Int32(components[3]) {
+                            let name = components[4...].joined(separator: " ")
                             let diskRates = diskIORates(for: pid, now: now)
                             let networkRates = networkRates(for: pid, totals: networkTotals[pid], now: now)
-                            
+
                             let process = ProcessInfo(
                                 pid: pid,
+                                parentPid: parentPid,
                                 name: name,
                                 cpuUsage: cpuUsage,
                                 memoryUsage: memUsage,
