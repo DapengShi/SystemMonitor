@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:SystemMonitor}",
+            "name": "Debug SystemMonitor",
+            "program": "${workspaceFolder:SystemMonitor}/.build/debug/SystemMonitor",
+            "preLaunchTask": "swift: Build Debug SystemMonitor"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:SystemMonitor}",
+            "name": "Release SystemMonitor",
+            "program": "${workspaceFolder:SystemMonitor}/.build/release/SystemMonitor",
+            "preLaunchTask": "swift: Build Release SystemMonitor"
+        }
+    ]
+}
