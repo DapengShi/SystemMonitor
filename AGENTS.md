@@ -1,5 +1,9 @@
 # Repository Guidelines
 
+## Requirement speicfications and implmentation designs
+1. Give the RFC for the uer's goal. The RFC files are all in doc/RFCs. And all files contians sequence number in file name.
+2. Then analyize the RFCs and generate implmentation desgin docs in doc/designs. The desgin doc contains the sequence number of corresponding RFCs.
+
 ## Project Structure & Module Organization
 SystemMonitor ships both as a Swift Package (`Package.swift`) and an Xcode project (`SystemMonitor.xcodeproj`). Core sources live in `Sources/SystemMonitor`, with `Views/` holding SwiftUI views, `SystemStats.swift` wrapping Darwin APIs, and `SystemMonitor-Bridging-Header.h` exposing C helpers. The legacy SwiftUI app target under `SystemMonitor/` mirrors the packaged code and is useful for quick UI experiments. Documentation for users and UI details sits at the repository root (`USER_GUIDE.md`, `INTERFACE_GUIDE.md`, `DETAIL_PAGE_GUIDE.md`). Keep any new assets or tooling scripts beside related features so packaging (`package_app.sh`) stays predictable.
 
