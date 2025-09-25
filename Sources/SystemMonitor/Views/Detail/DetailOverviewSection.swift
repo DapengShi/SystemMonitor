@@ -11,6 +11,8 @@ struct OverviewMetrics {
 }
 
 struct DetailOverviewSection: View {
+    @Environment(\.detailTheme) private var detailTheme
+
     let metrics: OverviewMetrics
 
     private let columns: [GridItem] = [
@@ -18,6 +20,7 @@ struct DetailOverviewSection: View {
         GridItem(.flexible(), spacing: 18)
     ]
 
+    private var palette: DetailThemePalette { detailTheme.palette }
     private var highlightedProcess: ProcessInfo? { metrics.highlightedProcess }
 
     var body: some View {
@@ -26,31 +29,39 @@ struct DetailOverviewSection: View {
                 title: "CPU",
                 subtitle: "\(DetailHelpers.formatPercent(fromRatio: metrics.cpuUsage)) USED",
                 icon: "cpu",
-                gradient: Palette.gradientCPU
+                gradient: palette.gradients.cpu,
+                palette: palette
             ) {
-                UsageBar(value: metrics.cpuUsage, gradient: Palette.gradientCPU)
-                    .frame(height: 18)
+                UsageBar(
+                    value: metrics.cpuUsage,
+                    gradient: palette.gradients.cpu,
+                    trackColor: palette.controlBorder.opacity(0.35),
+                    shadowColor: palette.shadow.opacity(0.6)
+                )
+                .frame(height: 18)
 
                 HStack(spacing: 12) {
                     MetricPill(
                         title: "Processes",
                         value: "\(metrics.processCount)",
-                        color: Palette.accentCyan
+                        color: palette.accentPrimary,
+                        palette: palette
                     )
                     if let top = highlightedProcess {
                         MetricPill(
                             title: "Top",
                             value: DetailHelpers.truncatedProcessName(top.name),
-                            color: Palette.accentMagenta
+                            color: palette.accentSecondary,
+                            palette: palette
                         )
                     }
                 }
 
                 if let loads = metrics.loadAverages {
                     HStack(spacing: 8) {
-                        MetricPill(title: "1m", value: String(format: "%.2f", loads.0), color: Palette.accentCyan)
-                        MetricPill(title: "5m", value: String(format: "%.2f", loads.1), color: Palette.accentMagenta)
-                        MetricPill(title: "15m", value: String(format: "%.2f", loads.2), color: Palette.accentPurple)
+                        MetricPill(title: "1m", value: String(format: "%.2f", loads.0), color: palette.accentPrimary, palette: palette)
+                        MetricPill(title: "5m", value: String(format: "%.2f", loads.1), color: palette.accentSecondary, palette: palette)
+                        MetricPill(title: "15m", value: String(format: "%.2f", loads.2), color: palette.accentQuaternary, palette: palette)
                     }
                 }
             }
@@ -59,21 +70,29 @@ struct DetailOverviewSection: View {
                 title: "MEMORY",
                 subtitle: "\(DetailHelpers.formatPercent(fromRatio: metrics.memoryUsage)) USED",
                 icon: "memorychip",
-                gradient: Palette.gradientMemory
+                gradient: palette.gradients.memory,
+                palette: palette
             ) {
-                UsageBar(value: metrics.memoryUsage, gradient: Palette.gradientMemory)
-                    .frame(height: 18)
+                UsageBar(
+                    value: metrics.memoryUsage,
+                    gradient: palette.gradients.memory,
+                    trackColor: palette.controlBorder.opacity(0.35),
+                    shadowColor: palette.shadow.opacity(0.6)
+                )
+                .frame(height: 18)
 
                 HStack(spacing: 12) {
                     MetricPill(
                         title: "Used",
                         value: DetailHelpers.formatPercent(fromRatio: metrics.memoryUsage, decimals: 1),
-                        color: Palette.accentGreen
+                        color: palette.accentTertiary,
+                        palette: palette
                     )
                     MetricPill(
                         title: "Free",
                         value: DetailHelpers.formatPercent(fromRatio: max(0, 1 - metrics.memoryUsage), decimals: 1),
-                        color: Palette.accentCyan
+                        color: palette.accentPrimary,
+                        palette: palette
                     )
                 }
             }
@@ -82,22 +101,33 @@ struct DetailOverviewSection: View {
                 title: "NETWORK",
                 subtitle: "↓ \(DetailHelpers.formatByteSpeed(metrics.downloadSpeed)) • ↑ \(DetailHelpers.formatByteSpeed(metrics.uploadSpeed))",
                 icon: "dot.radiowaves.up.forward",
-                gradient: Palette.gradientNetworkDown
+                gradient: palette.gradients.networkDown,
+                palette: palette
             ) {
                 VStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Download")
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.6))
-                        UsageBar(value: DetailHelpers.networkBarValue(for: metrics.downloadSpeed), gradient: Palette.gradientNetworkDown)
-                            .frame(height: 14)
+                            .foregroundColor(palette.secondaryText)
+                        UsageBar(
+                            value: DetailHelpers.networkBarValue(for: metrics.downloadSpeed),
+                            gradient: palette.gradients.networkDown,
+                            trackColor: palette.controlBorder.opacity(0.35),
+                            shadowColor: palette.shadow.opacity(0.6)
+                        )
+                        .frame(height: 14)
                     }
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Upload")
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.6))
-                        UsageBar(value: DetailHelpers.networkBarValue(for: metrics.uploadSpeed), gradient: Palette.gradientNetworkUp)
-                            .frame(height: 14)
+                            .foregroundColor(palette.secondaryText)
+                        UsageBar(
+                            value: DetailHelpers.networkBarValue(for: metrics.uploadSpeed),
+                            gradient: palette.gradients.networkUp,
+                            trackColor: palette.controlBorder.opacity(0.35),
+                            shadowColor: palette.shadow.opacity(0.6)
+                        )
+                        .frame(height: 14)
                     }
                 }
             }
@@ -106,84 +136,100 @@ struct DetailOverviewSection: View {
                 title: "FOCUS PROCESS",
                 subtitle: highlightedProcess != nil ? DetailHelpers.truncatedProcessName(highlightedProcess!.name) : "No data",
                 icon: "waveform.path.ecg",
-                gradient: Palette.gradientProcess
+                gradient: palette.gradients.process,
+                palette: palette
             ) {
                 if let process = highlightedProcess {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Text("PID")
                                 .font(.system(.caption, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.6))
+                                .foregroundColor(palette.secondaryText)
                             Text("\(process.pid)")
                                 .font(.system(.body, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(palette.primaryText)
                             Spacer()
                             MetricPill(
                                 title: "Alerts",
                                 value: process.isAbnormal ? "⚠︎" : "OK",
-                                color: process.isAbnormal ? Palette.accentOrange : Palette.accentGreen
+                                color: process.isAbnormal ? palette.accentWarning : palette.accentSuccess,
+                                palette: palette
                             )
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("CPU")
                                 .font(.system(.caption, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.6))
-                            UsageBar(value: min(process.cpuUsage / 100.0, 1.0), gradient: Palette.gradientProcess)
-                                .frame(height: 14)
-                                .overlay(
-                                    Text(String(format: "%.1f%%", process.cpuUsage))
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.white.opacity(0.8))
-                                        .padding(.trailing, 6),
-                                    alignment: .trailing
-                                )
+                                .foregroundColor(palette.secondaryText)
+                            UsageBar(
+                                value: min(process.cpuUsage / 100.0, 1.0),
+                                gradient: palette.gradients.process,
+                                trackColor: palette.controlBorder.opacity(0.35),
+                                shadowColor: palette.shadow.opacity(0.6)
+                            )
+                            .frame(height: 14)
+                            .overlay(
+                                Text(String(format: "%.1f%%", process.cpuUsage))
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundColor(palette.primaryText)
+                                    .padding(.trailing, 6),
+                                alignment: .trailing
+                            )
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Memory")
                                 .font(.system(.caption, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.6))
-                            UsageBar(value: min(process.memoryUsage / 100.0, 1.0), gradient: Palette.gradientMemory)
-                                .frame(height: 14)
-                                .overlay(
-                                    Text(String(format: "%.1f%%", process.memoryUsage))
-                                        .font(.system(.caption, design: .monospaced))
-                                        .foregroundColor(.white.opacity(0.8))
-                                        .padding(.trailing, 6),
-                                    alignment: .trailing
-                                )
+                                .foregroundColor(palette.secondaryText)
+                            UsageBar(
+                                value: min(process.memoryUsage / 100.0, 1.0),
+                                gradient: palette.gradients.memory,
+                                trackColor: palette.controlBorder.opacity(0.35),
+                                shadowColor: palette.shadow.opacity(0.6)
+                            )
+                            .frame(height: 14)
+                            .overlay(
+                                Text(String(format: "%.1f%%", process.memoryUsage))
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundColor(palette.primaryText)
+                                    .padding(.trailing, 6),
+                                alignment: .trailing
+                            )
                         }
 
                         HStack(spacing: 10) {
                             MetricPill(
                                 title: "Net ↓",
                                 value: DetailHelpers.formatBytesPerSecond(process.networkInBytesPerSecond),
-                                color: Palette.accentCyan
+                                color: palette.accentPrimary,
+                                palette: palette
                             )
                             MetricPill(
                                 title: "Net ↑",
                                 value: DetailHelpers.formatBytesPerSecond(process.networkOutBytesPerSecond),
-                                color: Palette.accentOrange
+                                color: palette.accentWarning,
+                                palette: palette
                             )
                         }
                         HStack(spacing: 10) {
                             MetricPill(
                                 title: "Disk R",
                                 value: DetailHelpers.formatBytesPerSecond(process.diskReadBytesPerSecond),
-                                color: Palette.accentGreen
+                                color: palette.accentSuccess,
+                                palette: palette
                             )
                             MetricPill(
                                 title: "Disk W",
                                 value: DetailHelpers.formatBytesPerSecond(process.diskWriteBytesPerSecond),
-                                color: Palette.accentMagenta
+                                color: palette.accentSecondary,
+                                palette: palette
                             )
                         }
                     }
                 } else {
                     Text("Select a process to inspect real-time metrics.")
                         .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(palette.secondaryText)
                 }
             }
         }
@@ -195,13 +241,20 @@ private struct StatBlock<Content: View>: View {
     let subtitle: String
     let icon: String
     let gradient: LinearGradient
+    let palette: DetailThemePalette
     private let contentBuilder: () -> Content
 
-    init(title: String, subtitle: String, icon: String, gradient: LinearGradient, @ViewBuilder content: @escaping () -> Content) {
+    init(title: String,
+         subtitle: String,
+         icon: String,
+         gradient: LinearGradient,
+         palette: DetailThemePalette,
+         @ViewBuilder content: @escaping () -> Content) {
         self.title = title
         self.subtitle = subtitle
         self.icon = icon
         self.gradient = gradient
+        self.palette = palette
         self.contentBuilder = content
     }
 
@@ -212,19 +265,19 @@ private struct StatBlock<Content: View>: View {
                     Circle()
                         .fill(gradient)
                         .frame(width: 34, height: 34)
-                        .opacity(0.8)
+                        .opacity(0.85)
                     Image(systemName: icon)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.white)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title.uppercased())
                         .font(.system(.headline, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(palette.primaryText)
                     Text(subtitle)
                         .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.55))
+                        .foregroundColor(palette.secondaryText)
                 }
             }
 
@@ -233,30 +286,32 @@ private struct StatBlock<Content: View>: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(Palette.cardBackground.opacity(0.94))
+                .fill(palette.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .stroke(Palette.border, lineWidth: 1.1)
+                .stroke(palette.border, lineWidth: 1.1)
         )
-        .shadow(color: Color.black.opacity(0.35), radius: 24, x: 0, y: 18)
+        .shadow(color: palette.shadow, radius: 24, x: 0, y: 18)
     }
 }
 
 private struct UsageBar: View {
     let value: Double
     let gradient: LinearGradient
+    let trackColor: Color
+    let shadowColor: Color
 
     var body: some View {
         GeometryReader { proxy in
             let clamped = max(0, min(value, 1))
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(trackColor)
                 Capsule()
                     .fill(gradient)
                     .frame(width: max(clamped * proxy.size.width, clamped > 0 ? 6 : 0))
-                    .shadow(color: Color.black.opacity(0.35), radius: 10, x: 0, y: 6)
+                    .shadow(color: shadowColor, radius: 10, x: 0, y: 6)
             }
         }
     }
@@ -266,21 +321,16 @@ private struct MetricPill: View {
     let title: String
     let value: String
     let color: Color
-
-    init(title: String, value: String, color: Color = .white) {
-        self.title = title
-        self.value = value
-        self.color = color
-    }
+    let palette: DetailThemePalette
 
     var body: some View {
         HStack(spacing: 6) {
             Text(title.uppercased())
                 .font(.system(.caption2, design: .monospaced))
-                .foregroundColor(color.opacity(0.9))
+                .foregroundColor(color)
             Text(value)
                 .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.white.opacity(0.85))
+                .foregroundColor(palette.primaryText)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 10)
@@ -290,7 +340,7 @@ private struct MetricPill: View {
         )
         .overlay(
             Capsule()
-                .stroke(color.opacity(0.45), lineWidth: 1)
+                .stroke(color.opacity(0.35), lineWidth: 1)
         )
     }
 }
@@ -325,10 +375,20 @@ struct DetailOverviewSection_Previews: PreviewProvider {
             highlightedProcess: sampleProcess,
             loadAverages: (1.23, 1.12, 0.98)
         )
-        return DetailOverviewSection(metrics: metrics)
-            .padding()
-            .background(Color.black)
-            .previewLayout(.sizeThatFits)
+        return Group {
+            DetailOverviewSection(metrics: metrics)
+                .detailTheme(DetailThemeController.preview(mode: .night, colorScheme: .dark))
+                .padding()
+                .background(Color.black)
+                .previewDisplayName("Night")
+
+            DetailOverviewSection(metrics: metrics)
+                .detailTheme(DetailThemeController.preview(mode: .day, colorScheme: .light))
+                .padding()
+                .background(Color.white)
+                .previewDisplayName("Day")
+        }
+        .previewLayout(.sizeThatFits)
     }
 }
 #endif

@@ -17,6 +17,8 @@ import Foundation
 import Darwin
 
 struct DetailView: View {
+    @Environment(\.detailTheme) private var detailTheme
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var systemStats = SystemStatsObservable()
     @State private var selectedProcess: ProcessInfo? = nil
     @State private var showKillConfirmation = false
@@ -26,8 +28,19 @@ struct DetailView: View {
     @State private var currentPage = 0
 
     private let pageSize = 50
+    private let availableSortOptions = SortOption.allCases
+    private let sortChipMinWidth: CGFloat = 68
 
-    enum SortOption: String, CaseIterable {
+    private var palette: DetailThemePalette { detailTheme.palette }
+
+    private var appearanceBinding: Binding<DetailAppearanceMode> {
+        Binding(
+            get: { detailTheme.mode },
+            set: { detailTheme.update(mode: $0, using: colorScheme) }
+        )
+    }
+
+    enum SortOption: String, CaseIterable, Identifiable {
         case cpu = "CPU"
         case memory = "Memory"
         case network = "Network"
@@ -38,6 +51,8 @@ struct DetailView: View {
         var description: String {
             rawValue
         }
+
+        var id: String { rawValue }
     }
 
     private var highlightedProcess: ProcessInfo? {
@@ -70,10 +85,10 @@ struct DetailView: View {
 
     var body: some View {
         ZStack {
-            Palette.background
+            palette.background
                 .ignoresSafeArea()
             LinearGradient(
-                colors: [Palette.background, Palette.backgroundSecondary.opacity(0.85)],
+                colors: [palette.background, palette.backgroundSecondary.opacity(0.9)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -113,6 +128,12 @@ struct DetailView: View {
         .onChange(of: sortOption) { _ in
             currentPage = 0
         }
+        .onChange(of: colorScheme) { scheme in
+            detailTheme.updateSystemColorScheme(scheme)
+        }
+        .onAppear {
+            detailTheme.updateSystemColorScheme(colorScheme)
+        }
     }
 
     private var headerSection: some View {
@@ -120,44 +141,99 @@ struct DetailView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("SYSTEM MONITOR")
                     .font(.system(.title2, design: .monospaced).weight(.heavy))
-                    .foregroundColor(Palette.accentCyan)
-                    .shadow(color: Palette.accentCyan.opacity(0.3), radius: 10, x: 0, y: 6)
+                    .foregroundColor(palette.accentPrimary)
+                    .shadow(color: palette.accentPrimary.opacity(0.3), radius: 10, x: 0, y: 6)
                 Text(headerSubtitle)
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(palette.secondaryText)
             }
 
             Spacer(minLength: 12)
 
-            Picker("Sort by", selection: $sortOption) {
-                ForEach(SortOption.allCases, id: \.self) { option in
-                    Text(option.description).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 420)
-            .tint(Palette.accentMagenta)
+            sortPicker
+                .frame(width: 420)
+
+            appearancePicker
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.white.opacity(0.45))
+                    .foregroundColor(palette.iconMuted)
                 TextField("Search processes", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(.body, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(palette.primaryText)
                     .disableAutocorrection(true)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Palette.cardBackground.opacity(0.9))
+                    .fill(palette.controlBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Palette.border, lineWidth: 1)
+                    .stroke(palette.controlBorder, lineWidth: 1)
             )
         }
+    }
+
+    private var appearancePicker: some View {
+        Picker(selection: appearanceBinding) {
+            ForEach(DetailAppearanceMode.allCases) { mode in
+                DetailThemeOptionLabel(mode: mode)
+                    .tag(mode)
+            }
+        } label: {
+            DetailThemeOptionLabel(mode: detailTheme.mode)
+        }
+        .tint(palette.primaryText)
+        .pickerStyle(.menu)
+        .help("Select appearance for the detail view")
+    }
+
+    private var sortPicker: some View {
+        let options = Array(availableSortOptions)
+        return HStack(spacing: 8) {
+            ForEach(options, id: \.id) { option in
+                sortButton(for: option)
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(palette.controlBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(palette.controlBorder, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func sortButton(for option: SortOption) -> some View {
+        let isSelected = sortOption == option
+        Button {
+            sortOption = option
+        } label: {
+            Text(option.description.uppercased())
+                .font(.system(size: 13, weight: isSelected ? .semibold : .medium, design: .rounded))
+                .foregroundColor(isSelected ? palette.textOnAccent : palette.secondaryText)
+                .lineLimit(1)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 14)
+                .fixedSize(horizontal: true, vertical: false)
+                .background(
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(isSelected ? palette.accentSecondary : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 9)
+                        .stroke(isSelected ? Color.clear : palette.controlBorder.opacity(0.7), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 9))
+        .animation(.easeInOut(duration: 0.12), value: isSelected)
     }
 
     private var processPanel: some View {
@@ -362,5 +438,26 @@ class SystemStatsObservable: ObservableObject {
         refreshWorkItem = workItem
         let delay: DispatchTime = immediate ? .now() : .now() + 0.1
         samplingQueue.asyncAfter(deadline: delay, execute: workItem)
+    }
+}
+
+private struct DetailThemeOptionLabel: View {
+    @Environment(\.detailTheme) private var detailTheme
+
+    let mode: DetailAppearanceMode
+
+    private var palette: DetailThemePalette { detailTheme.palette }
+
+    var body: some View {
+        let color = palette.primaryText
+        return Label {
+            Text(mode.title)
+                .foregroundColor(color)
+        } icon: {
+            Image(systemName: mode.symbolName)
+                .renderingMode(.template)
+        }
+        .tint(color)
+        .padding(.vertical, 4)
     }
 }

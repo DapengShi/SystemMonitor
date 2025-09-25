@@ -57,11 +57,21 @@ private final class DetailWindow: NSWindow {
 class DetailWindowController: NSWindowController {
     // Singleton instance
     static let shared = DetailWindowController()
-    
+
+    private let themeController: DetailThemeController
+
     private init() {
+        let storedMode = DetailThemeController.storedMode()
+        let systemScheme = DetailWindowController.currentColorScheme()
+        themeController = DetailThemeController(
+            initialMode: storedMode,
+            systemColorScheme: systemScheme
+        )
+
         // Create the SwiftUI view
         let detailView = DetailView()
-        
+            .detailTheme(themeController)
+
         // Create the hosting view controller
         let hostingController = NSHostingController(rootView: detailView)
         
@@ -91,5 +101,20 @@ class DetailWindowController: NSWindowController {
         guard let window = window else { return }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if let scheme = DetailWindowController.currentColorScheme() {
+            themeController.updateSystemColorScheme(scheme)
+        }
+    }
+
+    private static func currentColorScheme() -> ColorScheme? {
+        let appearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
+        switch appearance {
+        case .some(.darkAqua):
+            return .dark
+        case .some(.aqua):
+            return .light
+        default:
+            return nil
+        }
     }
 }

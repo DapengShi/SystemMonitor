@@ -10,6 +10,8 @@ struct DisplayProcess: Identifiable {
 }
 
 struct ProcessListView: View {
+    @Environment(\.detailTheme) private var detailTheme
+
     let title: String
     let rows: [DisplayProcess]
     let totalProcesses: Int
@@ -21,44 +23,46 @@ struct ProcessListView: View {
     let onPageChange: (Int) -> Void
     let onKillRequested: () -> Void
 
+    private var palette: DetailThemePalette { detailTheme.palette }
+
     var body: some View {
         VStack(spacing: 0) {
             header
-            ProcessTableHeader(sortOption: sortOption)
+            ProcessTableHeader(sortOption: sortOption, palette: palette)
                 .padding(.horizontal, 4)
 
             Divider()
-                .background(Palette.border)
+                .background(palette.border)
                 .padding(.bottom, 2)
 
             scrollableRows
-                .background(Palette.cardBackground.opacity(0.4))
+                .background(palette.cardBackground.opacity(0.45))
 
             Divider()
-                .background(Palette.border)
+                .background(palette.border)
 
             footer
         }
         .background(
             RoundedRectangle(cornerRadius: 22)
-                .fill(Palette.panelBackground.opacity(0.92))
+                .fill(palette.panelBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 22)
-                .stroke(Palette.border, lineWidth: 1.2)
+                .stroke(palette.border, lineWidth: 1.2)
         )
-        .shadow(color: Color.black.opacity(0.45), radius: 30, x: 0, y: 24)
+        .shadow(color: palette.shadow, radius: 30, x: 0, y: 24)
     }
 
     private var header: some View {
         HStack {
             Text(title)
                 .font(.system(.headline, design: .monospaced))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(palette.primaryText)
             Spacer()
             Text("Active \(totalProcesses)")
                 .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundColor(palette.tertiaryText)
             if totalPages > 1 {
                 paginationControls
             }
@@ -75,12 +79,12 @@ struct ProcessListView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.bordered)
-            .tint(Palette.accentCyan)
+            .tint(palette.paginationTint)
             .disabled(currentPage == 0)
 
             Text("Page \(currentPage + 1)/\(totalPages)")
                 .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundColor(palette.tertiaryText)
 
             Button(action: {
                 onPageChange(min(currentPage + 1, totalPages - 1))
@@ -88,7 +92,7 @@ struct ProcessListView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.bordered)
-            .tint(Palette.accentCyan)
+            .tint(palette.paginationTint)
             .disabled(currentPage >= totalPages - 1)
         }
     }
@@ -106,6 +110,7 @@ struct ProcessListView: View {
                             isSelected: selectedProcess?.pid == display.process.pid,
                             isEven: index % 2 == 0,
                             sortOption: sortOption,
+                            palette: palette,
                             onToggle: { onToggle(display.process) },
                             onSelect: { selectedProcess = display.process }
                         )
@@ -142,7 +147,7 @@ struct ProcessListView: View {
             }
             .disabled(selectedProcess == nil)
             .buttonStyle(.borderedProminent)
-            .tint(selectedProcess == nil ? Color.gray.opacity(0.6) : Palette.accentOrange)
+            .tint(selectedProcess == nil ? palette.tertiaryText.opacity(0.4) : palette.accentWarning)
 
             Spacer()
 
@@ -153,11 +158,11 @@ struct ProcessListView: View {
                     Text("NET ↓\(DetailHelpers.formatBytesPerSecond(process.networkInBytesPerSecond)) ↑\(DetailHelpers.formatBytesPerSecond(process.networkOutBytesPerSecond)) · DISK R\(DetailHelpers.formatBytesPerSecond(process.diskReadBytesPerSecond)) W\(DetailHelpers.formatBytesPerSecond(process.diskWriteBytesPerSecond))")
                 }
                 .font(.system(.caption, design: .monospaced))
-                .foregroundColor(.white.opacity(0.65))
+                .foregroundColor(palette.secondaryText)
             } else {
                 Text("Select a process to inspect or terminate")
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(palette.tertiaryText)
             }
         }
         .padding(.horizontal, 20)
@@ -175,6 +180,7 @@ private enum ProcessColumn {
 
 private struct ProcessTableHeader: View {
     let sortOption: DetailView.SortOption
+    let palette: DetailThemePalette
 
     var body: some View {
         HStack(spacing: 0) {
@@ -186,7 +192,7 @@ private struct ProcessTableHeader: View {
             headerCell("DISK", width: ProcessColumn.disk, alignment: .trailing, isActive: sortOption == .disk)
         }
         .font(.system(.caption, design: .monospaced))
-        .foregroundColor(.white.opacity(0.6))
+        .foregroundColor(palette.secondaryText)
         .padding(.horizontal, 20)
         .padding(.top, 6)
         .padding(.bottom, 4)
@@ -195,7 +201,7 @@ private struct ProcessTableHeader: View {
     private func headerCell(_ title: String, width: CGFloat?, alignment: Alignment, isActive: Bool = false, flexible: Bool = false) -> some View {
         let label = Text(title)
             .font(.system(.caption, design: .monospaced))
-            .foregroundColor(isActive ? Palette.accentCyan : .white.opacity(0.55))
+            .foregroundColor(isActive ? palette.accentPrimary : palette.secondaryText)
 
         return Group {
             if flexible {
@@ -219,18 +225,19 @@ private struct ProcessRowView: View {
     let isSelected: Bool
     let isEven: Bool
     let sortOption: DetailView.SortOption
+    let palette: DetailThemePalette
     let onToggle: () -> Void
     let onSelect: () -> Void
 
     var body: some View {
         ZStack {
-            (isSelected ? Palette.rowSelected : (isEven ? Palette.rowEven : Palette.rowOdd))
+            (isSelected ? palette.rowSelected : palette.rowBackground(isEven: isEven))
                 .animation(.easeInOut(duration: 0.12), value: isSelected)
 
             HStack(spacing: 0) {
                 Text("\(process.pid)")
                     .frame(width: ProcessColumn.pid, alignment: .leading)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(palette.secondaryText)
 
                 nameColumn
 
@@ -264,7 +271,7 @@ private struct ProcessRowView: View {
         }
         .overlay(
             Rectangle()
-                .fill(Palette.border)
+                .fill(palette.border)
                 .frame(height: 1),
             alignment: .bottom
         )
@@ -295,7 +302,7 @@ private struct ProcessRowView: View {
             if hasChildren {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Palette.accentCyan.opacity(0.85))
+                    .foregroundColor(palette.accentPrimary)
                     .onTapGesture {
                         onToggle()
                     }
@@ -305,31 +312,31 @@ private struct ProcessRowView: View {
 
             Text(process.name)
                 .lineLimit(1)
-                .foregroundColor(.white.opacity(0.92))
+                .foregroundColor(palette.primaryText)
         }
         .frame(minWidth: 200, maxWidth: .infinity, alignment: .leading)
     }
 
     private var cpuColor: Color {
         if process.isHighCPU {
-            return Palette.accentOrange
+            return palette.accentWarning
         }
-        return sortOption == .cpu ? Palette.accentMagenta : .white.opacity(0.75)
+        return sortOption == .cpu ? palette.accentSecondary : palette.secondaryText
     }
 
     private var memoryColor: Color {
         if process.isHighMemory {
-            return Palette.accentOrange
+            return palette.accentWarning
         }
-        return sortOption == .memory ? Palette.accentGreen : .white.opacity(0.75)
+        return sortOption == .memory ? palette.accentTertiary : palette.secondaryText
     }
 
     private var networkColor: Color {
-        sortOption == .network ? Palette.accentCyan.opacity(0.85) : .white.opacity(0.55)
+        sortOption == .network ? palette.accentPrimary : palette.tertiaryText
     }
 
     private var diskColor: Color {
-        sortOption == .disk ? Palette.accentMagenta.opacity(0.85) : .white.opacity(0.55)
+        sortOption == .disk ? palette.accentSecondary : palette.tertiaryText
     }
 }
 
