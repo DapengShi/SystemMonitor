@@ -38,6 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     // Process monitoring
     private var topProcesses: [ProcessInfo] = []
+    private var processMenuItems: [NSMenuItem] = []
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Create the status item in the menu bar
@@ -84,13 +85,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateProcesses()
         
         // Set up timer for periodic updates
-        timer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
+        timer = Timer(timeInterval: updateInterval, repeats: true) { [weak self] _ in
             self?.updateStats()
         }
-        
-        // Set up timer for process monitoring
-        processTimer = Timer.scheduledTimer(withTimeInterval: processUpdateInterval, repeats: true) { [weak self] _ in
+        if let timer = timer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+
+        processTimer = Timer(timeInterval: processUpdateInterval, repeats: true) { [weak self] _ in
             self?.updateProcesses()
+        }
+        if let processTimer = processTimer {
+            RunLoop.main.add(processTimer, forMode: .common)
         }
     }
     
@@ -149,33 +155,40 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func updateProcessMenuItems() {
         guard let menu = statusItem.menu else { return }
-        
-        guard
-            let headerIndex = menu.items.firstIndex(where: { $0.title == "Top Processes" }),
-            let separatorIndex = menu.items.firstIndex(of: processSectionSeparator)
-        else { return }
-        
-        if separatorIndex - headerIndex > 1 {
-            for index in stride(from: separatorIndex - 1, through: headerIndex + 1, by: -1) {
-                menu.removeItem(at: index)
-            }
-        }
-        
-        guard let updatedSeparatorIndex = menu.items.firstIndex(of: processSectionSeparator) else { return }
-        
+        guard let headerIndex = menu.items.firstIndex(where: { $0.title == "Top Processes" }) else { return }
+        guard menu.items.firstIndex(of: processSectionSeparator) != nil else { return }
+        let insertionIndex = headerIndex + 1
+
         if topProcesses.isEmpty {
+            for item in processMenuItems {
+                if let index = menu.items.firstIndex(of: item) {
+                    menu.removeItem(at: index)
+                }
+            }
+            processMenuItems.removeAll()
             if menu.items.firstIndex(of: processPlaceholderItem) == nil {
-                menu.insertItem(processPlaceholderItem, at: updatedSeparatorIndex)
+                menu.insertItem(processPlaceholderItem, at: insertionIndex)
             }
             return
         }
-        
-        if menu.items.firstIndex(of: processPlaceholderItem) != nil {
-            menu.removeItem(processPlaceholderItem)
+
+        if let placeholderIndex = menu.items.firstIndex(of: processPlaceholderItem) {
+            menu.removeItem(at: placeholderIndex)
         }
-        
-        var insertionIndex = updatedSeparatorIndex
-        for process in topProcesses {
+
+        let desiredCount = topProcesses.count
+
+        if processMenuItems.count < desiredCount {
+            for index in processMenuItems.count..<desiredCount {
+                let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+                processMenuItems.append(item)
+                menu.insertItem(item, at: insertionIndex + index)
+            }
+        }
+
+        for (index, process) in topProcesses.enumerated() {
+            guard index < processMenuItems.count else { break }
+            let item = processMenuItems[index]
             let netUp = systemStats.formatByteSpeed(process.networkOutBytesPerSecond)
             let netDown = systemStats.formatByteSpeed(process.networkInBytesPerSecond)
             let diskRead = systemStats.formatByteSpeed(process.diskReadBytesPerSecond)
@@ -190,18 +203,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 diskRead,
                 diskWrite
             )
-            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            
+            item.title = title
             if process.isAbnormal {
                 let attributes: [NSAttributedString.Key: Any] = [
                     .foregroundColor: NSColor.red,
                     .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
                 ]
                 item.attributedTitle = NSAttributedString(string: title, attributes: attributes)
+            } else {
+                item.attributedTitle = nil
             }
-            
-            menu.insertItem(item, at: insertionIndex)
-            insertionIndex += 1
+
+            if let currentIndex = menu.items.firstIndex(of: item), currentIndex != insertionIndex + index {
+                menu.removeItem(at: currentIndex)
+                menu.insertItem(item, at: insertionIndex + index)
+            }
+        }
+
+        if processMenuItems.count > desiredCount {
+            for index in stride(from: processMenuItems.count - 1, through: desiredCount, by: -1) {
+                let item = processMenuItems.remove(at: index)
+                if let itemIndex = menu.items.firstIndex(of: item) {
+                    menu.removeItem(at: itemIndex)
+                }
+            }
         }
     }
     

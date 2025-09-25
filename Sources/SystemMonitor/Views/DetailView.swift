@@ -44,6 +44,9 @@ struct DetailView: View {
     @State private var expandedProcesses: Set<Int32> = []
     @State private var searchText = ""
     @State private var sortOption = SortOption.cpu
+    @State private var currentPage = 0
+
+    private let pageSize = 50
 
     enum SortOption: String, CaseIterable {
         case cpu = "CPU"
@@ -348,7 +351,8 @@ struct DetailView: View {
     }
 
     private var processPanel: some View {
-        let rows = displayProcesses
+        let rows = paginatedDisplayProcesses
+        let totalPages = max(1, Int(ceil(Double(allDisplayProcesses.count) / Double(pageSize))))
 
         return VStack(spacing: 0) {
             HStack {
@@ -359,6 +363,31 @@ struct DetailView: View {
                 Text("Active \(systemStats.processes.count)")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.white.opacity(0.5))
+                if totalPages > 1 {
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            currentPage = max(currentPage - 1, 0)
+                        }) {
+                            Image(systemName: "chevron.left")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(Palette.accentCyan)
+                        .disabled(currentPage == 0)
+
+                        Text("Page \(currentPage + 1)/\(totalPages)")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.5))
+
+                        Button(action: {
+                            currentPage = min(currentPage + 1, totalPages - 1)
+                        }) {
+                            Image(systemName: "chevron.right")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(Palette.accentCyan)
+                        .disabled(currentPage >= totalPages - 1)
+                    }
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
@@ -467,6 +496,15 @@ struct DetailView: View {
                 .stroke(Palette.border, lineWidth: 1.2)
         )
         .shadow(color: Color.black.opacity(0.45), radius: 30, x: 0, y: 24)
+        .onChange(of: searchText) { _ in
+            currentPage = 0
+        }
+        .onChange(of: sortOption) { _ in
+            currentPage = 0
+        }
+        .onChange(of: systemStats.processes.map { $0.pid }) { _ in
+            clampCurrentPage()
+        }
     }
 
     private var searchFilteredProcesses: [ProcessInfo] {
@@ -477,7 +515,7 @@ struct DetailView: View {
         return processes.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
-    private var displayProcesses: [DisplayProcess] {
+    private var allDisplayProcesses: [DisplayProcess] {
         let filtered = searchFilteredProcesses
         let childrenMap = Dictionary(grouping: filtered, by: { $0.parentPid })
         let sorted = sortProcesses(filtered, by: sortOption)
@@ -524,6 +562,17 @@ struct DetailView: View {
         return flattened
     }
 
+    private var paginatedDisplayProcesses: [DisplayProcess] {
+        let rows = allDisplayProcesses
+        guard pageSize > 0 else { return rows }
+        let totalPages = max(1, Int(ceil(Double(rows.count) / Double(pageSize))))
+        let page = min(max(currentPage, 0), totalPages - 1)
+        let start = page * pageSize
+        let end = min(start + pageSize, rows.count)
+        guard start < end else { return [] }
+        return Array(rows[start..<end])
+    }
+
     private func sortProcesses(_ processes: [ProcessInfo], by option: SortOption) -> [ProcessInfo] {
         switch option {
         case .cpu:
@@ -550,6 +599,15 @@ struct DetailView: View {
             expandedProcesses.remove(process.pid)
         } else {
             expandedProcesses.insert(process.pid)
+        }
+    }
+
+    private func clampCurrentPage() {
+        let totalCount = allDisplayProcesses.count
+        guard pageSize > 0 else { return }
+        let totalPages = max(1, Int(ceil(Double(totalCount) / Double(pageSize))))
+        if currentPage >= totalPages {
+            currentPage = max(totalPages - 1, 0)
         }
     }
 
@@ -944,7 +1002,7 @@ class SystemStatsObservable: ObservableObject {
         refreshWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
-            let fetched = self.systemStats.getTopProcesses(limit: 50)
+            let fetched = self.systemStats.getTopProcesses(limit: 0)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self] in
                 withAnimation(.easeInOut(duration: 0.15)) {
                     self?.processes = fetched

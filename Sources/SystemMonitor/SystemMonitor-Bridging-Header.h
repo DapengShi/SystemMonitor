@@ -26,5 +26,4 @@
 #include <netinet/in.h>
 #include <ifaddrs.h>
 #include <libproc.h>
-
 #endif /* SystemMonitor_Bridging_Header_h */
