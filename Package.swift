@@ -33,7 +33,8 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("Foundation"),
-                .linkedFramework("IOKit")
+                .linkedFramework("IOKit"),
+                .linkedLibrary("sqlite3")
             ]
         ),
     ]

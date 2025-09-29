@@ -14,13 +14,40 @@
 
 import Foundation
 import Darwin
+import os.log
 
 final class SystemStats {
     private var previousCPUTicks: (user: Double, system: Double, idle: Double, nice: Double) = (0, 0, 0, 0)
     private var previousBytesIn: UInt64 = 0
     private var previousBytesOut: UInt64 = 0
     private var lastNetworkCheckTime: Date = Date()
-    private let processCollector = ProcessCollector()
+    private let processCollector: ProcessCollector
+    private let metricsRecorder: ProcessMetricsRecorder?
+    private let metricsStore: ProcessMetricsStore?
+    private let logger = Logger(subsystem: "com.systemmonitor", category: "SystemStats")
+
+
+    init(metricsStore: ProcessMetricsStore? = nil) {
+        if let metricsStore {
+            self.metricsStore = metricsStore
+        } else {
+            do {
+                self.metricsStore = try SQLiteProcessMetricsStore()
+            } catch {
+                self.metricsStore = nil
+                logger.error("Failed to initialise SQLiteProcessMetricsStore: \(String(describing: error), privacy: .public)")
+            }
+        }
+
+        if let store = self.metricsStore {
+            let recorder = ProcessMetricsRecorder(store: store)
+            self.metricsRecorder = recorder
+            self.processCollector = ProcessCollector(metricsRecorder: recorder)
+        } else {
+            self.metricsRecorder = nil
+            self.processCollector = ProcessCollector()
+        }
+    }
 
     func getCPUUsage() -> Double {
         var cpuInfo = host_cpu_load_info_data_t()
@@ -118,6 +145,11 @@ final class SystemStats {
         lastNetworkCheckTime = now
 
         return (uploadSpeed, downloadSpeed)
+    }
+
+    func metricsHistory(for pid: Int32, since date: Date, limit: Int? = nil) throws -> [ProcessMetricSample] {
+        guard let metricsStore else { return [] }
+        return try metricsStore.fetchMetrics(pid: pid, since: date, limit: limit)
     }
 
     func getTopProcesses(limit: Int = 0) -> [ProcessInfo] {

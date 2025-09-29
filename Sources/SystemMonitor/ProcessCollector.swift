@@ -21,6 +21,7 @@ final class ProcessCollector {
     private var hostSampler: any HostCPUSamplerProtocol
     private var networkSampler: any NetworkUsageSamplerProtocol
     private var metricsCalculator: any ProcessMetricsCalculating
+    private var metricsRecorder: ProcessMetricsRecording?
     private var cachedProcesses: [Int32: CachedProcess] = [:]
     private var networkTotals: [Int32: (UInt64, UInt64)] = [:]
     private let commandBufferSize = 8192
@@ -33,9 +34,11 @@ final class ProcessCollector {
     init(processEnumerator: ProcessEnumeratorProtocol = ProcessEnumerator(),
          hostSampler: HostCPUSamplerProtocol? = nil,
          networkSampler: NetworkUsageSamplerProtocol = NetworkUsageSampler(),
-         metricsCalculator: ProcessMetricsCalculating? = nil) {
+         metricsCalculator: ProcessMetricsCalculating? = nil,
+         metricsRecorder: ProcessMetricsRecording? = nil) {
         self.processEnumerator = processEnumerator
         self.networkSampler = networkSampler
+        self.metricsRecorder = metricsRecorder
 
         var timebaseInfo = mach_timebase_info_data_t()
         mach_timebase_info(&timebaseInfo)
@@ -64,7 +67,9 @@ final class ProcessCollector {
         return collectorQueue.sync {
             let nowAbs = mach_absolute_time()
             let hostDeltaSeconds = hostSampler.deltaSeconds()
-            guard let processes = readProcessList(nowAbs: nowAbs, hostDeltaSeconds: hostDeltaSeconds) else { return [] }
+            let sampleDate = Date()
+            guard let processes = readProcessList(nowAbs: nowAbs, hostDeltaSeconds: hostDeltaSeconds, sampleDate: sampleDate) else { return [] }
+            metricsRecorder?.record(processes: processes, timestamp: sampleDate)
             let slice: ArraySlice<ProcessInfo>
             if limit > 0 && processes.count > limit {
                 slice = processes[..<limit]
@@ -75,9 +80,9 @@ final class ProcessCollector {
         }
     }
 
-    private func readProcessList(nowAbs: UInt64, hostDeltaSeconds: Double?) -> [ProcessInfo]? {
+    private func readProcessList(nowAbs: UInt64, hostDeltaSeconds: Double?, sampleDate: Date) -> [ProcessInfo]? {
         return processEnumerator.withProcessList { pointer in
-            networkTotals = networkSampler.sampleIfNeeded(reference: Date())
+            networkTotals = networkSampler.sampleIfNeeded(reference: sampleDate)
 
             var processes: [ProcessInfo] = []
             processes.reserveCapacity(pointer.count)
